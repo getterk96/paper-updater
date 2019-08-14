@@ -29,8 +29,9 @@ class PDFDownloader(threading.Thread):
             r = requests.get(index['url'])
             with open(path, "wb") as f:
                 f.write(r.content)
-            with open(os.path.join(storage_dir, 'bibtexs', index['title'].replace('.pdf', '.bib')), 'w') as f:
-                f.write(index['bibtex'])
+            if index['bibtex'] is not None:
+                with open(os.path.join(storage_dir, 'bibtexs', index['title'].replace('.pdf', '.bib')), 'w') as f:
+                    f.write(index['bibtex'])
 
 
 def CVPR(year=2019, search=''):
@@ -44,7 +45,29 @@ def CVPR(year=2019, search=''):
         result['bibtex'] = paper.find(class_='bibref').text[1:]
         result['title'] = re.search(r'title = {(.*?)}', result['bibtex'], re.I).group()[9:-1].replace(' ', '_') + '.pdf'
         result['url'] = 'http://openaccess.thecvf.com/' + paper.a.get('href')
-        if search in result['title'].lower() and result['title'] not in cur_papers:
+        if search.lower() in result['title'].lower() and result['title'] not in cur_papers:
+            results.append(result)
+
+    return results
+
+
+def ICML(year=2019, search=''):
+    if year == 2019:
+        url = 'http://proceedings.mlr.press/v97/'
+    elif year == 2018:
+        url = 'http://proceedings.mlr.press/v80/'
+    else:
+        return []
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, features="html.parser")
+    papers = soup.find_all(class_='paper')
+    results = []
+    for paper in papers:
+        result = {}
+        result['bibtex'] = None
+        result['title'] = paper.p.text.replace(' ', '_') + '.pdf'
+        result['url'] = paper.find_all('a')[1].get('href')
+        if search.lower() in result['title'].lower() and result['title'] not in cur_papers:
             results.append(result)
 
     return results
@@ -71,5 +94,5 @@ def download_paper(indexs):
 
 
 if __name__ == "__main__":
-    download_paper(CVPR(search='shot')) # use lower case to search
+    download_paper(CVPR(search='shot') + ICML(search='shot'))
     print("Finish update!")
